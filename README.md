@@ -7,7 +7,7 @@ You start by giving LyricAI your favorite albums. It then picks random song lyri
 ![Image 1](images/JI-3.png)
 Wow, how profound.
 
-![Image 2](Images/JM-1.png)
+![Image 2](images/JM-1.png)
 Truly a poet.
 
 You can run this Python script on a Raspberry Pi [works with Model 3B (1 GB RAM), but Model 4 w/ >1 GB RAM reccommended]. I have it running on my Pi connected to my television. It's truly entertaining!
