@@ -12,7 +12,6 @@ from flask import Flask
 app = Flask(__name__)
 # Utils
 import random
-from time import sleep
 
 ########## PARAMS ##########
 
@@ -38,7 +37,7 @@ album_list["Taylor Swift"] = ["Folklore", "Evermore"]
 # Download albums?
 do_download = False
 # Genius API Key
-genius_key = "YOUR KEY HERE"
+genius_key = "YOUR TOKEN HERE"
 
 ########## Globals ##########
 song_list = {}
@@ -47,7 +46,6 @@ generator = pipeline('text-generation', model=model)
 ########## Funcs ##########
 
 def get_song_list(album_list, genius, do_song_update):
-    print(do_song_update)
     file_list = []
     
     if do_song_update:
@@ -68,6 +66,7 @@ def get_song_list(album_list, genius, do_song_update):
 
     song_list = []
 
+    # add all found songs to a list
     for file in file_list:
         with open(file) as f:
             data = json.load(f)
@@ -81,15 +80,16 @@ def get_song_list(album_list, genius, do_song_update):
 def get_web_content(song_list, generator, in_lines=2, out_lines=2):
     song = random.choice(song_list)
     lyrics = song["lyrics"].splitlines()
+    # Need to remove lines that aren't actually lyrics
     processed_lyrics = []
-    # Preprocess Lyrics
     for i in range(0,len(lyrics)):
         lyric = lyrics[i]
         lyric.replace("\n","")
 
         if not "[" in lyric and lyric != "":
             processed_lyrics.append(lyric)
-    
+
+    # Get random starting location in the selected song and extract lines
     start = random.randint(0,len(processed_lyrics)-(in_lines+out_lines))
     lyric_in = ""
     for i in range(0, in_lines):
@@ -101,12 +101,14 @@ def get_web_content(song_list, generator, in_lines=2, out_lines=2):
         to_add = processed_lyrics[i+start+in_lines]
         lyric_out = lyric_out + to_add + "\n"
 
+    # This value for output length seems to work well, but you can adjust it
     out_len = int(len(lyric_in+lyric_out)/3)
-    
+
+    # Actually generate text
     output = generator(lyric_in, max_length=out_len, num_return_sequences=1)
     ai_out = output[0]["generated_text"][len(lyric_in):]
 
-    # removes final newlines
+    # removes final newlines and replace \n with <br> for HTML
     lyric_in = lyric_in[:-1]
     lyric_in = lyric_in.replace("\n","<br>")
     lyric_out = lyric_out[:-1]
@@ -122,12 +124,14 @@ def get_web_content(song_list, generator, in_lines=2, out_lines=2):
     web_content["ai_out"] = ai_out
     return web_content
 
+# Executed the first time the website is visited
 @app.before_first_request
 def create_app():
     global song_list, album_list, do_download, genius_key
     genius = Genius(genius_key)
     song_list = get_song_list(album_list, genius, do_download)
 
+# Executed every time the website is reloaded
 @app.route('/')
 @app.route('/index')
 def index():
