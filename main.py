@@ -4,7 +4,7 @@ from os import listdir
 from os.path import isfile, join
 import json
 # GPT
-from transformers import pipeline, set_seed
+from transformers import GPT2Tokenizer, TFGPT2LMHeadModel
 # Flask
 import flask
 from flask import render_template
@@ -20,8 +20,9 @@ import random
 #model = "gpt2"
 # Works best on RPi (about 500 MB)
 #model = "ml6team/gpt-2-small-conditional-quote-generator"
+model = "/Users/alex/funstuff-local/LyricsTrain/caches/ts-model-1-40-2/tf_model.h5"
 # Works best on good systems (>1 GB)
-model = "ml6team/gpt-2-medium-conditional-quote-generator"
+#model = "ml6team/gpt-2-medium-conditional-quote-generator"
 # This one is fun
 #model = "huggingtweets/realdonaldtrump"
 
@@ -37,11 +38,13 @@ album_list["Taylor Swift"] = ["Folklore", "Evermore"]
 # Download albums?
 do_download = False
 # Genius API Key
-genius_key = "YOUR TOKEN HERE"
+genius_key = ""
 
 ########## Globals ##########
 song_list = {}
-generator = pipeline('text-generation', model=model)
+cache_dir = "/Users/alex/funstuff-local/LyricsTrain/caches/"
+tokenizer = GPT2Tokenizer.from_pretrained("distilgpt2", cache_dir=cache_dir)
+model = TFGPT2LMHeadModel.from_pretrained(os.path.join(cache_dir, model))
 
 ########## Funcs ##########
 
@@ -100,14 +103,21 @@ def get_web_content(song_list, generator, in_lines=2, out_lines=2):
     for i in range(0, out_lines):
         to_add = processed_lyrics[i+start+in_lines]
         lyric_out = lyric_out + to_add + "\n"
-
+    
     # This value for output length seems to work well, but you can adjust it
-    out_len = int(len(lyric_in+lyric_out)/3)
+    out_len = int(len(lyric_in+lyric_out))
 
     # Actually generate text
-    output = generator(lyric_in, max_length=out_len, num_return_sequences=1)
-    ai_out = output[0]["generated_text"][len(lyric_in):]
+    tokenized = tokenizer(lyric_in)
+    output = model.generate(
+        input_ids=tokenized.input_ids,
+        temperature=1,
+        do_sample=True,
+        max_length=out_len,
+        min_length=15)
 
+    ai_out = output[0]["generated_text"][len(lyric_in):]
+    
     # removes final newlines and replace \n with <br> for HTML
     lyric_in = lyric_in[:-1]
     lyric_in = lyric_in.replace("\n","<br>")
